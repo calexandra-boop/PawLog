@@ -675,9 +675,7 @@ renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth());
 renderTodayStrip();
 // Auto fetch recent history on first load (mobile safe)
 fetchHistory(120).catch(()=>{});
-</script>
-</body>
-</html>
+
 document.getElementById('resetBtn').addEventListener('click', () => {
 localStorage.removeItem(LS_KEY);
 localStorage.removeItem(DEDUPE_KEY);
@@ -687,3 +685,6 @@ const status = document.getElementById('status');
 status.textContent = 'Local data cleared — tap Sync to reload from Sheet.';
 status.className = 'status ok';
 });
+</script>
+</body>
+</html>
