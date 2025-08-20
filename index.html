@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<title>PawLog — iOS Mobile</title>
+
+<!-- iOS PWA-ish meta -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#4CAF50">
+
+<style>
+:root{
+--brand:#4CAF50;
+--brand-2:#2e7d32;
+--bg:#f7f8fa;
+--card:#ffffff;
+--text:#111;
+--muted:#6b7280;
+--line:#e5e7eb;
+--chip:#e8f5e9;
+--chip-2:#c8e6c9;
+--danger:#ef4444;
+--safe-top: env(safe-area-inset-top);
+--safe-bottom: env(safe-area-inset-bottom);
+--safe-left: env(safe-area-inset-left);
+--safe-right: env(safe-area-inset-right);
+}
+
+*{box-sizing:border-box; -webkit-tap-highlight-color: rgba(0,0,0,0);}
+html,body{height:100%}
+html{-webkit-text-size-adjust:100%}
+
+body{
+margin:0;
+font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, system-ui, sans-serif;
+background:var(--bg); color:var(--text);
+padding: calc(8px + var(--safe-top)) 10px calc(86px + var(--safe-bottom)) 10px;
+overscroll-behavior-y: contain;
+}
+
+/* Header */
+header{
+position: sticky; top:0; z-index:10;
+padding: 10px 8px;
+margin: -10px -10px 8px -10px;
+padding-top: calc(10px + var(--safe-top));
+background: linear-gradient(to bottom, rgba(247,248,250,0.97), rgba(247,248,250,0.6));
+backdrop-filter: saturate(180%) blur(8px);
+border-bottom:1px solid var(--line);
+display:flex; align-items:center; justify-content:space-between; gap:8px;
+}
+.h-title{display:flex; align-items:center; gap:8px}
+.h-title h1{font-size:20px; color:var(--brand); margin:0}
+.h-sub{font-size:12px; color:var(--muted)}
+
+/* Card */
+.card{ background:var(--card); border-radius:14px; border:1px solid var(--line); padding:12px; }
+
+/* Activity row */
+.activity-buttons{
+display:flex; gap:8px; overflow:auto; padding-bottom:6px; margin-bottom:8px;
+-webkit-overflow-scrolling: touch; scroll-snap-type:x proximity;
+}
+.activity-btn{
+flex:0 0 auto; padding:12px 14px; border-radius:12px; border:2px solid var(--chip);
+background:var(--chip); color:var(--brand-2); font-weight:700; font-size:14px; cursor:pointer;
+scroll-snap-align:start;
+}
+.activity-btn.selected{background:var(--chip-2); border-color:var(--brand);}
+.section-title{font-weight:800; margin:2px 0 8px 2px; font-size:14px}
+
+/* Inputs */
+label{font-size:12px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); display:block; margin:8px 2px 4px}
+input[type="text"], input[type="number"], input[type="time"], input[type="date"], textarea, select{
+width:100%; padding:14px 12px; border-radius:12px; border:1px solid var(--line); font-size:16px; background:#fff;
+}
+textarea{min-height:68px; resize:vertical;}
+.row{display:flex; gap:8px;}
+.row > *{flex:1}
+.chips{display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 0}
+.chip{
+display:inline-flex; align-items:center; gap:6px; padding:10px 12px; border-radius:999px; border:1px solid var(--line); background:#f9fafb; cursor:pointer;
+font-weight:700; font-size:14px;
+}
+.chip[data-selected="true"]{background:var(--chip); border-color:var(--brand); color:var(--brand-2);}
+
+.submit-btn{
+width:100%; margin-top:10px; background:var(--brand); color:#fff; border:none; border-radius:12px; padding:14px 16px;
+font-weight:800; font-size:16px; cursor:pointer;
+}
+.submit-btn:active{transform: translateY(1px)}
+.status{min-height:22px; font-weight:800; margin-top:8px;}
+.status.ok{color:#16a34a}
+.status.err{color:var(--danger)}
+.inline-hint{font-size:12px; color:var(--muted)}
+
+/* Sticky Quick Add bar */
+.quickbar{
+position: fixed; left:0; right:0; bottom:0; z-index:20;
+padding: 8px 10px calc(8px + var(--safe-bottom)) 10px;
+background: rgba(255,255,255,0.98);
+backdrop-filter: blur(8px);
+border-top:1px solid var(--line);
+}
+.quick-title{font-size:11px; color:var(--muted); margin:0 0 6px 2px; text-transform:uppercase; letter-spacing:.04em}
+.quick-row{display:flex; gap:8px; overflow:auto; -webkit-overflow-scrolling: touch;}
+.quick-btn{ flex:0 0 auto; border:1px solid var(--line); background:#fff; border-radius:999px; padding:10px 12px; font-weight:800; font-size:14px; }
+
+/* Calendar */
+.calendar{margin-top:10px}
+.calendar-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;}
+.cal-nav{display:flex; gap:8px; flex-wrap:wrap;}
+.cal-btn{ padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; font-weight:700;}
+
+.dow-row{display:grid; grid-template-columns: repeat(7, 1fr); gap:4px; padding:0 2px}
+.dow{font-size:11px; font-weight:800; color:var(--muted); text-align:center; padding:4px 0}
+.grid{display:grid; grid-template-columns: repeat(7, 1fr); gap:4px;}
+.day{ background:#fff; border:1px solid var(--line); border-radius:10px; min-height:74px; padding:6px; display:flex; flex-direction:column; gap:4px; }
+.day.other{opacity:.4}
+.day .date-num{font-weight:800; font-size:12px}
+.pill-row{display:flex; flex-wrap:wrap; gap:4px}
+.pill{ font-size:10px; font-weight:800; padding:3px 6px; border-radius:999px; background:var(--chip); border:1px solid var(--line); white-space:nowrap;}
+.day:active{outline:2px solid var(--chip-2)}
+
+.legend{display:flex; flex-wrap:wrap; gap:6px; font-size:12px; margin-top:8px}
+.legend .pill{background:#f9fafb}
+
+/* Day modal */
+dialog{border:none; border-radius:16px; width:100%; max-width:560px; padding:0; box-shadow:0 8px 32px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+.modal-head{position:sticky; top:0; background:#fff; padding:12px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:8px}
+.modal-body{padding:12px; max-height:70vh; overflow:auto}
+.log-item{border:1px solid var(--line); border-radius:12px; padding:10px; display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; gap:12px}
+.log-left{min-width:0}
+.log-item .meta{font-size:12px; color:var(--muted)}
+.log-actions{display:flex; gap:6px; flex:0 0 auto}
+.del-btn{ border:1px solid var(--line); background:#fff; border-radius:10px; padding:8px 10px; font-weight:800; font-size:12px; color:#b91c1c; }
+.empty{color:var(--muted); font-style:italic}
+
+/* Today strip */
+.today-strip{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+.today-chip{padding:6px 8px; border-radius:999px; background:#f9fafb; border:1px solid var(--line); font-weight:800; font-size:12px}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark){
+:root{ --bg:#0b0e11; --card:#0f1317; --text:#eee; --muted:#9aa4b2; --line:#1f2937; --chip:#0e2011; --chip-2:#14361a; }
+.quickbar{background: rgba(16,20,24,0.98);}
+.cal-btn{background:#0f1317}
+.del-btn{background:#0f1317}
+}
+</style>
+</head>
+<body>
+<!-- HEADER -->
+<header>
+<div class="h-title">
+<div>🐶</div>
+<h1>PawLog</h1>
+</div>
+<div class="h-sub">Mobile • iOS</div>
+</header>
+
+<!-- MAIN -->
+<main>
+<!-- Quick Log -->
+<section class="card">
+<div class="section-title">Quick Log</div>
+
+<div class="activity-buttons" id="activityButtons">
+<button type="button" class="activity-btn" data-activity="Feeding">🐾 Feeding</button>
+<button type="button" class="activity-btn" data-activity="Walk">🚶 Walk</button>
+<button type="button" class="activity-btn" data-activity="Bathroom">💩 Bathroom</button>
+<button type="button" class="activity-btn" data-activity="Medication">💊 Medication</button>
+<button type="button" class="activity-btn" data-activity="Vet Visit">🏥 Vet Visit</button>
+</div>
+
+<div class="row">
+<div>
+<label for="dateInput">Date</label>
+<input id="dateInput" type="date"/>
+</div>
+<div>
+<label for="timeInput">Time</label>
+<input id="timeInput" type="time" />
+</div>
+</div>
+
+<!-- Custom fields injected here -->
+<div id="dynamicFields"></div>
+
+<label for="notesInput">Notes (optional)</label>
+<textarea id="notesInput" placeholder="Any extra details..."></textarea>
+
+<button class="submit-btn" id="submitBtn">Log Activity</button>
+<div class="status" id="status"></div>
+<div class="inline-hint">Uses your Apps Script + local cache.</div>
+
+<div class="section-title" style="margin-top:12px">Today</div>
+<div id="todayStrip" class="today-strip"></div>
+</section>
+
+<!-- Calendar -->
+<section class="calendar">
+<div class="calendar-head">
+<div class="section-title" id="monthLabel">Month</div>
+<div class="cal-nav">
+<!-- Reset + Sync + Nav -->
+<button class="cal-btn" id="resetBtn">Reset</button>
+<button class="cal-btn" id="syncBtn">Sync</button>
+<button class="cal-btn" id="prevBtn">◀︎</button>
+<button class="cal-btn" id="todayBtn">Today</button>
+<button class="cal-btn" id="nextBtn">▶︎</button>
+</div>
+</div>
+
+<div class="dow-row" id="dowRow"></div>
+<div class="grid" id="calendarGrid"></div>
+
+<div class="legend">
+<span class="pill">Feeding</span>
+<span class="pill">Walk</span>
+<span class="pill">Bathroom</span>
+<span class="pill">Medication</span>
+<span class="pill">Vet Visit</span>
+</div>
+</section>
+</main>
+
+<!-- Sticky Quick Bar -->
+<div id="quickbar" class="quickbar" style="display:none">
+<div class="quick-title">Quick Add — uses current date/time</div>
+<div id="quickRow" class="quick-row"></div>
+</div>
+
+<!-- Day Modal -->
+<dialog id="dayModal">
+<div class="modal-head">
+<div id="dayModalTitle">Logs</div>
+<button class="cal-btn" id="closeModal">Close</button>
+</div>
+<div class="modal-body">
+<div id="logsOnDay"></div>
+</div>
+</dialog>
+
+<script>
+// ===== Config =====
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMNcmdsfZa3lkPjL588G-nzkeEtzXrvrORTdPvCGuQf7G_Jae9_WvARk-Xd8YXGdLhug/exec';
+const USER_NAME = 'Default User';
+const LS_KEY = 'pawlog-entries-v1';
+const DEDUPE_KEY = 'pawlog-ids-v1';
+
+// ===== Utilities =====
+const pad = (n) => String(n).padStart(2,'0');
+const toDateKey = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+function setDefaultDateTime(){
+const d = document.getElementById('dateInput');
+const t = document.getElementById('timeInput');
+const now = new Date();
+d.value = now.toISOString().slice(0,10);
+t.value = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+function loadCache(){ try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch(e){ return []; } }
+function saveCache(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+function addToCache(entry){ const arr = loadCache(); arr.push(entry); saveCache(arr); }
+function entriesByDateKey(){
+const out = {}; for(const e of loadCache()){ const k = e.dateKey; (out[k]||(out[k]=[])).push(e); } return out;
+}
+function idSet(){ try{return new Set(JSON.parse(localStorage.getItem(DEDUPE_KEY)||'[]'))}catch(e){return new Set()}}
+function saveIdSet(s){ localStorage.setItem(DEDUPE_KEY, JSON.stringify(Array.from(s))); }
+
+// Keep inputs visible when iOS keyboard opens
+document.addEventListener('focusin', (e) => {
+if (e.target.matches('input, textarea, select')) {
+setTimeout(()=> e.target.scrollIntoView({block:'center', behavior:'smooth'}), 50);
+}
+});
+
+// ===== UI: Activity + QuickBar =====
+const dynamicFields = document.getElementById('dynamicFields');
+const quickbar = document.getElementById('quickbar');
+const quickRow = document.getElementById('quickRow');
+let currentActivity = null;
+
+function showQuickBar(activity){
+quickRow.innerHTML = '';
+let opts = [];
+if(activity === 'Feeding'){
+opts = [
+{label:'feed 0.5 scoops', payload:{amount:0.5}},
+{label:'feed 1.0 scoops', payload:{amount:1.0}},
+{label:'feed 1.5 scoops', payload:{amount:1.5}},
+];
+} else if(activity === 'Walk'){
+opts = [
+{label:'walk 15 minutes', payload:{minutes:15}},
+{label:'walk 30 minutes', payload:{minutes:30}},
+{label:'walk 45 minutes', payload:{minutes:45}},
+{label:'walk 60 minutes', payload:{minutes:60}},
+];
+} else if(activity === 'Bathroom'){
+opts = [
+{label:'bathroom — pee', payload:{type:'Pee'}},
+{label:'bathroom — poop', payload:{type:'Poop'}},
+{label:'bathroom — both', payload:{type:'Both'}},
+];
+} else if(activity === 'Medication'){
+opts = [
+{label:'trazodone 25 mg', payload:{medName:'Trazodone', mg:25}},
+{label:'trazodone 50 mg', payload:{medName:'Trazodone', mg:50}},
+{label:'trazodone 75 mg', payload:{medName:'Trazodone', mg:75}},
+{label:'trazodone
