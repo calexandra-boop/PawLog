@@ -637,35 +637,34 @@ status.textContent = 'Local data cleared — tap Sync to reload from Sheet.';
 status.className = 'status ok';
 });
 
-// ===== Delete (local + server) =====
+// ===== Delete (local + server, iOS-friendly) =====
 async function deleteLog(entryId, dateKeyForModal){
 const status = document.getElementById('status');
-// Optimistic local delete
+
+// 1) Optimistic local delete
 const remaining = loadCache().filter(e => e.id !== entryId);
 saveCache(remaining);
-// also update id set if present
-try{
+try {
 const ids = new Set(JSON.parse(localStorage.getItem(DEDUPE_KEY)||'[]'));
 ids.delete(entryId);
 saveIdSet(ids);
-}catch(_){}
+} catch(_) {}
 
-// Re-render UI
 renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth());
 renderTodayStrip();
-// If modal is open for the same day, refresh its contents
 if (dateKeyForModal) openDay(dateKeyForModal, new Date(dateKeyForModal));
 
-// Server delete
-try{
+// 2) Server delete (use no-cors + text/plain to avoid Safari CORS issues)
+try {
 await fetch(APPS_SCRIPT_URL, {
-method:'POST',
-headers:{'Content-Type':'application/json'},
-body: JSON.stringify({_action:'delete', id: entryId})
+method: 'POST',
+mode: 'no-cors',
+headers: { 'Content-Type': 'text/plain' },
+body: JSON.stringify({ _action:'delete', id: entryId })
 });
 status.textContent = 'Deleted';
 status.className = 'status ok';
-}catch(e){
+} catch (e) {
 status.textContent = 'Deleted locally (server unreachable)';
 status.className = 'status err';
 }
