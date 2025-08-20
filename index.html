@@ -210,6 +210,8 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 <div class="calendar-head">
 <div class="section-title" id="monthLabel">Month</div>
 <div class="cal-nav">
+<button class="cal-btn" id="resetBtn">Reset</button>
+<button class="cal-btn" id="syncBtn">Sync</button>
 <button class="cal-btn" id="syncBtn">Sync</button>
 <button class="cal-btn" id="prevBtn">◀︎</button>
 <button class="cal-btn" id="todayBtn">Today</button>
@@ -677,4 +679,12 @@ fetchHistory(120).catch(()=>{});
 </script>
 </body>
 </html>
-
+document.getElementById('resetBtn').addEventListener('click', () => {
+localStorage.removeItem(LS_KEY);
+localStorage.removeItem(DEDUPE_KEY);
+renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth());
+renderTodayStrip();
+const status = document.getElementById('status');
+status.textContent = 'Local data cleared — tap Sync to reload from Sheet.';
+status.className = 'status ok';
+});
