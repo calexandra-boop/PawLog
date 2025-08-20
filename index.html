@@ -311,4 +311,425 @@ opts = [
 {label:'trazodone 25 mg', payload:{medName:'Trazodone', mg:25}},
 {label:'trazodone 50 mg', payload:{medName:'Trazodone', mg:50}},
 {label:'trazodone 75 mg', payload:{medName:'Trazodone', mg:75}},
-{label:'trazodone
+{label:'trazodone 100 mg', payload:{medName:'Trazodone', mg:100}},
+];
+} else if(activity === 'Vet Visit'){
+opts = [
+{label:'vet visit — check-up', payload:{reason:'check-up'}},
+{label:'vet visit — vaccine', payload:{reason:'vaccine'}},
+{label:'vet visit — post-op', payload:{reason:'post-op'}},
+];
+}
+opts.forEach(opt => {
+const b = document.createElement('button');
+b.className = 'quick-btn'; b.type = 'button'; b.textContent = opt.label;
+b.addEventListener('click', ()=> quickAdd(activity, opt.payload));
+quickRow.appendChild(b);
+});
+quickbar.style.display = opts.length ? '' : 'none';
+}
+
+function renderFields(activity){
+dynamicFields.innerHTML = '';
+if(activity === 'Feeding'){
+dynamicFields.innerHTML = `
+<label>Custom Feeding</label>
+<div class="chips" id="feedChips">
+<button type="button" class="chip" data-value="0.5">0.5 scoops</button>
+<button type="button" class="chip" data-value="1.0">1.0 scoops</button>
+<button type="button" class="chip" data-value="1.5">1.5 scoops</button>
+</div>
+<div class="row" style="margin-top:6px">
+<div>
+<label for="feedAmount">Amount</label>
+<input id="feedAmount" type="number" min="0" step="0.5" placeholder="e.g., 1.0"/>
+</div>
+<div>
+<label for="foodType">Food Type</label>
+<input id="foodType" type="text" placeholder="kibble / wet / treat"/>
+</div>
+</div>`;
+hookChipGroup('feedChips', 'feedAmount');
+} else if(activity === 'Walk'){
+dynamicFields.innerHTML = `
+<label>Custom Walk</label>
+<div class="chips" id="walkChips">
+<button type="button" class="chip" data-value="15">15 minutes</button>
+<button type="button" class="chip" data-value="30">30 minutes</button>
+<button type="button" class="chip" data-value="45">45 minutes</button>
+<button type="button" class="chip" data-value="60">60 minutes</button>
+</div>
+<div style="margin-top:6px">
+<label for="walkMins">Duration</label>
+<input id="walkMins" type="number" min="0" step="15" placeholder="e.g., 30"/>
+</div>`;
+hookChipGroup('walkChips', 'walkMins');
+} else if(activity === 'Bathroom'){
+dynamicFields.innerHTML = `
+<label>Bathroom Type</label>
+<div class="chips" id="bathChips">
+<button type="button" class="chip" data-value="Pee">Pee</button>
+<button type="button" class="chip" data-value="Poop">Poop</button>
+<button type="button" class="chip" data-value="Both">Both</button>
+</div>`;
+hookChipGroup('bathChips', null);
+} else if(activity === 'Medication'){
+dynamicFields.innerHTML = `
+<label>Medication</label>
+<div class="row">
+<div>
+<select id="medName">
+<option value="Trazodone" selected>Trazodone</option>
+<option value="Other">Other…</option>
+</select>
+</div>
+<div>
+<input id="medNameCustom" type="text" placeholder="Name (if Other)" style="display:none"/>
+</div>
+</div>
+<label>Dosage</label>
+<div class="chips" id="medChips">
+<button type="button" class="chip" data-value="25">25 mg</button>
+<button type="button" class="chip" data-value="50">50 mg</button>
+<button type="button" class="chip" data-value="75">75 mg</button>
+<button type="button" class="chip" data-value="100">100 mg</button>
+</div>
+<div style="margin-top:6px">
+<label for="medMg">Custom (mg)</label>
+<input id="medMg" type="number" min="0" step="25" placeholder="e.g., 25"/>
+</div>`;
+hookChipGroup('medChips', 'medMg');
+setTimeout(()=>{
+const medName = document.getElementById('medName');
+const medCustom = document.getElementById('medNameCustom');
+medName.addEventListener('change', ()=>{ medCustom.style.display = medName.value === 'Other' ? '' : 'none'; });
+});
+} else if(activity === 'Vet Visit'){
+dynamicFields.innerHTML = `
+<label for="vetReason">Reason</label>
+<input id="vetReason" type="text" placeholder="e.g., check-up, vaccine, post-op"/>`;
+}
+}
+
+function hookChipGroup(groupId, inputId){
+const group = document.getElementById(groupId); if(!group) return;
+const chips = [...group.querySelectorAll('.chip')];
+const input = inputId ? document.getElementById(inputId) : null;
+chips.forEach(ch => {
+ch.addEventListener('click', ()=>{
+const selected = ch.getAttribute('data-selected') === 'true';
+chips.forEach(c => c.setAttribute('data-selected','false'));
+ch.setAttribute('data-selected', selected ? 'false' : 'true');
+if(input){ input.value = selected ? '' : ch.dataset.value; }
+});
+});
+}
+
+// Activity selection
+const activityButtons = document.getElementById('activityButtons').querySelectorAll('.activity-btn');
+activityButtons.forEach(btn => {
+btn.addEventListener('click', () => {
+activityButtons.forEach(b => b.classList.remove('selected'));
+btn.classList.add('selected');
+currentActivity = btn.dataset.activity;
+setDefaultDateTime();
+showQuickBar(currentActivity);
+renderFields(currentActivity);
+});
+});
+
+// ===== Build & Save Helpers =====
+function getSelectedDateTime(){
+const now = new Date();
+const d = document.getElementById('dateInput').value || now.toISOString().slice(0,10);
+const t = document.getElementById('timeInput').value || `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+const [y,m,dd] = d.split('-').map(Number);
+const [hh,mm] = t.split(':').map(Number);
+return new Date(y, m-1, dd, hh||0, mm||0);
+}
+function optimisticSave(entry, notes=''){
+addToCache(entry);
+renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth());
+renderTodayStrip();
+const payload = {
+Timestamp: new Date(entry.timestamp).toLocaleString(),
+Activity: entry.activity,
+Description: entry.description,
+Notes: notes || '',
+User: USER_NAME
+};
+fetch(APPS_SCRIPT_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) }).catch(()=>{});
+}
+
+function quickAdd(activity, payload){
+const status = document.getElementById('status');
+const ts = getSelectedDateTime();
+const dateKey = toDateKey(ts);
+let description = activity, qty=null, unit='';
+
+if(activity === 'Feeding'){ const amount = payload.amount; description = `feed ${amount} scoops`; qty=amount; unit='scoops'; }
+else if(activity === 'Walk'){ const minutes = payload.minutes; description = `walk ${minutes} minutes`; qty=minutes; unit='minutes'; }
+else if(activity === 'Bathroom'){ const type = payload.type; description = `bathroom — ${type.toLowerCase()}`; }
+else if(activity === 'Medication'){ const name = payload.medName||'Medication'; const mg=payload.mg||null; description = `${name.toLowerCase()} ${mg? mg + ' mg':''}`.trim(); qty=mg; unit='mg'; }
+else if(activity === 'Vet Visit'){ const reason = payload.reason||''; description = reason ? `vet visit — ${reason}` : 'vet visit'; }
+
+const id = `${ts.toISOString()}|${activity}|${description}`;
+const entry = { id, timestamp: ts.toISOString(), dateKey, activity, description, notes:'', qty, unit, ...payload };
+optimisticSave(entry);
+status.textContent = 'Saved! (Quick Add)'; status.className = 'status ok';
+setDefaultDateTime();
+}
+
+// Custom submit
+document.getElementById('submitBtn').addEventListener('click', () => {
+const status = document.getElementById('status');
+if(!currentActivity){ status.textContent = 'Please select an activity.'; status.className = 'status err'; return; }
+
+const ts = getSelectedDateTime();
+const dateKey = toDateKey(ts);
+const notes = document.getElementById('notesInput').value.trim();
+
+let description = '', qty = null, unit = '', extra = {};
+if(currentActivity === 'Feeding'){
+const amount = parseFloat(document.getElementById('feedAmount')?.value || '0') || null;
+const foodType = document.getElementById('foodType')?.value?.trim() || '';
+qty = amount; unit = 'scoops';
+description = amount ? `feed ${amount} scoops` : 'feeding';
+if(foodType) description += ` — ${foodType}`;
+extra = { amount, foodType };
+} else if(currentActivity === 'Walk'){
+const mins = parseFloat(document.getElementById('walkMins')?.value || '0') || null;
+qty = mins; unit = 'minutes';
+description = mins ? `walk ${mins} minutes` : 'walk';
+extra = { minutes: mins };
+} else if(currentActivity === 'Bathroom'){
+const chip = document.querySelector('#bathChips .chip[data-selected="true"]');
+const type = chip ? chip.getAttribute('data-value') : '';
+description = type ? `bathroom — ${type.toLowerCase()}` : 'bathroom';
+extra = { type };
+} else if(currentActivity === 'Medication'){
+const medSel = document.getElementById('medName').value;
+const medName = (medSel === 'Other' ? (document.getElementById('medNameCustom').value.trim() || 'Medication') : medSel);
+const mg = parseFloat(document.getElementById('medMg')?.value || '0') || null;
+qty = mg; unit = 'mg';
+description = mg ? `${medName.toLowerCase()} ${mg} mg` : medName.toLowerCase();
+extra = { medName, mg };
+} else if(currentActivity === 'Vet Visit'){
+const reason = document.getElementById('vetReason')?.value?.trim() || '';
+description = reason ? `vet visit — ${reason}` : 'vet visit';
+extra = { reason };
+}
+
+const id = `${ts.toISOString()}|${currentActivity}|${description}`;
+const entry = { id, timestamp: ts.toISOString(), dateKey, activity: currentActivity, description, notes, qty, unit, ...extra };
+optimisticSave(entry, notes);
+status.textContent = 'Saved!'; status.className = 'status ok';
+document.getElementById('notesInput').value = '';
+renderFields(currentActivity);
+setDefaultDateTime();
+});
+
+// ===== Calendar + Sync =====
+const calendarGrid = document.getElementById('calendarGrid');
+const dowRow = document.getElementById('dowRow');
+const monthLabel = document.getElementById('monthLabel');
+const dayModal = document.getElementById('dayModal');
+const logsOnDay = document.getElementById('logsOnDay');
+const dayModalTitle = document.getElementById('dayModalTitle');
+
+const dows = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+dows.forEach(d => { const el = document.createElement('div'); el.className='dow'; el.textContent = d; dowRow.appendChild(el); });
+
+let nowRef = new Date();
+let currentMonth = new Date(nowRef.getFullYear(), nowRef.getMonth(), 1);
+
+function renderCalendar(year, monthIndex){
+const firstDay = new Date(year, monthIndex, 1);
+const lastDay = new Date(year, monthIndex + 1, 0);
+const startWeekDay = (firstDay.getDay()+6)%7; // Monday=0
+const daysInMonth = lastDay.getDate();
+
+monthLabel.textContent = firstDay.toLocaleString(undefined, {month:'long', year:'numeric'});
+calendarGrid.innerHTML = '';
+
+const cells = [];
+const daysFromPrev = startWeekDay;
+const prevLast = new Date(year, monthIndex, 0).getDate();
+
+for(let i=daysFromPrev; i>0; i--){ cells.push({date:new Date(year, monthIndex-1, prevLast - i + 1), other:true}); }
+for(let d=1; d<=daysInMonth; d++){ cells.push({date:new Date(year, monthIndex, d), other:false}); }
+while(cells.length % 7 !== 0){ const nextIndex = cells.length - daysFromPrev - daysInMonth + 1; cells.push({date:new Date(year, monthIndex+1, nextIndex), other:true}); }
+
+const byDate = entriesByDateKey();
+
+for(const cell of cells){
+const el = document.createElement('div');
+el.className = 'day' + (cell.other ? ' other' : '');
+const dateNum = document.createElement('div'); dateNum.className = 'date-num'; dateNum.textContent = cell.date.getDate();
+el.appendChild(dateNum);
+
+const pk = toDateKey(cell.date);
+const logs = byDate[pk] || [];
+
+if(logs.length){
+const counts = logs.reduce((acc,e)=>{ acc[e.activity] = (acc[e.activity]||0) + 1; return acc; },{});
+const row = document.createElement('div'); row.className='pill-row';
+for(const [act,count] of Object.entries(counts)){
+const pill = document.createElement('div'); pill.className='pill';
+pill.textContent = `${act} ×${count}`;
+row.appendChild(pill);
+}
+el.appendChild(row);
+}
+
+el.addEventListener('click', ()=> openDay(pk, cell.date));
+calendarGrid.appendChild(el);
+}
+}
+
+function openDay(dateKey, dateObj){
+dayModalTitle.textContent = dateObj.toLocaleDateString(undefined, { weekday:'long', month:'short', day:'numeric', year:'numeric'});
+const logs = (entriesByDateKey()[dateKey] || []).sort((a,b)=> a.timestamp.localeCompare(b.timestamp));
+logsOnDay.innerHTML = '';
+if(!logs.length){
+logsOnDay.innerHTML = '<div class="empty">No entries yet.</div>';
+}else{
+for(const e of logs){
+const row = document.createElement('div');
+row.className = 'log-item';
+
+const left = document.createElement('div');
+left.className = 'log-left';
+const time = new Date(e.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+left.innerHTML = `<strong>${e.activity}</strong> — ${e.description}<div class="meta">${time}${e.notes? ' · ' + e.notes : ''}</div>`;
+
+const actions = document.createElement('div');
+actions.className = 'log-actions';
+const del = document.createElement('button');
+del.className = 'del-btn';
+del.type = 'button';
+del.textContent = '🗑️ Delete';
+del.addEventListener('click', ()=> deleteLog(e.id, dateKey));
+
+actions.appendChild(del);
+row.appendChild(left);
+row.appendChild(actions);
+logsOnDay.appendChild(row);
+}
+}
+document.getElementById('dateInput').value = toDateKey(dateObj);
+dayModal.showModal();
+}
+document.getElementById('closeModal').addEventListener('click', ()=> dayModal.close());
+document.getElementById('prevBtn').addEventListener('click', ()=>{ currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()-1, 1); renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth()); });
+document.getElementById('nextBtn').addEventListener('click', ()=>{ currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 1); renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth()); });
+document.getElementById('todayBtn').addEventListener('click', ()=>{ nowRef = new Date(); currentMonth = new Date(nowRef.getFullYear(), nowRef.getMonth(), 1); renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth()); setDefaultDateTime(); });
+
+// Reset local cache
+document.getElementById('resetBtn').addEventListener('click', () => {
+localStorage.removeItem(LS_KEY);
+localStorage.removeItem(DEDUPE_KEY);
+renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth());
+renderTodayStrip();
+logsOnDay.innerHTML = '';
+const status = document.getElementById('status');
+status.textContent = 'Local data cleared — tap Sync to reload from Sheet.';
+status.className = 'status ok';
+});
+
+// ===== Delete (local + server) =====
+async function deleteLog(entryId, dateKeyForModal){
+const status = document.getElementById('status');
+// Optimistic local delete
+const remaining = loadCache().filter(e => e.id !== entryId);
+saveCache(remaining);
+// also update id set if present
+try{
+const ids = new Set(JSON.parse(localStorage.getItem(DEDUPE_KEY)||'[]'));
+ids.delete(entryId);
+saveIdSet(ids);
+}catch(_){}
+
+// Re-render UI
+renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth());
+renderTodayStrip();
+// If modal is open for the same day, refresh its contents
+if (dateKeyForModal) openDay(dateKeyForModal, new Date(dateKeyForModal));
+
+// Server delete
+try{
+await fetch(APPS_SCRIPT_URL, {
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body: JSON.stringify({_action:'delete', id: entryId})
+});
+status.textContent = 'Deleted';
+status.className = 'status ok';
+}catch(e){
+status.textContent = 'Deleted locally (server unreachable)';
+status.className = 'status err';
+}
+}
+
+// Sync (pull history; merge mode)
+document.getElementById('syncBtn').addEventListener('click', ()=> fetchHistory(365));
+async function fetchHistory(days=120){
+try{
+const since = new Date(Date.now() - days*24*60*60*1000).toISOString().slice(0,10);
+const res = await fetch(`${APPS_SCRIPT_URL}?since=${encodeURIComponent(since)}`, { cache: 'no-cache' });
+if(!res.ok) throw new Error('HTTP '+res.status);
+const rows = await res.json();
+const ids = idSet();
+const add = [];
+for(const r of rows){
+const ts = new Date(r.Timestamp);
+if(!isFinite(ts)) continue;
+const dateKey = toDateKey(ts);
+const activity = r.Activity || 'Log';
+const description = r.Description || '';
+const id = `${ts.toISOString()}|${activity}|${description}`;
+if(ids.has(id)) continue;
+ids.add(id);
+add.push({ id, timestamp: ts.toISOString(), dateKey, activity, description, notes: r.Notes || '', qty: null, unit: '' });
+}
+if(add.length){
+const merged = loadCache().concat(add);
+saveCache(merged); saveIdSet(ids);
+}
+renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth());
+renderTodayStrip();
+const status = document.getElementById('status');
+status.textContent = 'Synced!';
+status.className='status ok';
+}catch(e){
+const status = document.getElementById('status');
+status.textContent = 'Sync failed';
+status.className='status err';
+}
+}
+
+// Today strip
+function renderTodayStrip(){
+const wrap = document.getElementById('todayStrip');
+wrap.innerHTML = '';
+const todayKey = toDateKey(new Date());
+const logs = (entriesByDateKey()[todayKey] || []);
+if(!logs.length){ wrap.innerHTML = '<span class="today-chip">No logs yet</span>'; return; }
+const byAct = logs.reduce((a,e)=>{ (a[e.activity]=a[e.activity]||[]).push(e); return a; },{});
+for(const [act, arr] of Object.entries(byAct)){
+const chip = document.createElement('div');
+chip.className = 'today-chip';
+chip.textContent = `${act} ×${arr.length}`;
+wrap.appendChild(chip);
+}
+}
+
+// Init
+setDefaultDateTime();
+renderCalendar(currentMonth.getFullYear(), currentMonth.getMonth());
+renderTodayStrip();
+// Auto fetch recent history on first load
+fetchHistory(120).catch(()=>{});
+</script>
+</body>
+</html>
