@@ -107,11 +107,19 @@ textarea{min-height:68px; resize:vertical;}
 .quick-row{display:flex; gap:8px; overflow:auto; -webkit-overflow-scrolling: touch;}
 .quick-btn{ flex:0 0 auto; border:1px solid var(--line); background:#fff; border-radius:999px; padding:10px 12px; font-weight:800; font-size:14px; }
 
-/* WEEK VIEW */
+/* WEEK VIEW + mini strip */
 .week{margin-top:10px}
 .week-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;}
 .week-nav{display:flex; gap:8px; flex-wrap:wrap;}
 .cal-btn{ padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; font-weight:700;}
+
+.mini-strip{display:flex; gap:8px; flex-wrap:wrap; margin:6px 2px 10px}
+.mini-chip{
+  display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#fff;
+  font-weight:800; cursor:pointer;
+}
+.mini-chip .sub{font-size:11px; color:var(--muted); font-weight:600}
+.mini-pill{font-size:11px; padding:3px 6px; border-radius:999px; background:#f9fafb; border:1px solid var(--line)}
 
 .dow-row{display:grid; grid-template-columns: repeat(7, 1fr); gap:4px; padding:0 2px}
 .dow{font-size:11px; font-weight:800; color:var(--muted); text-align:center; padding:4px 0}
@@ -202,7 +210,11 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   <!-- WEEK VIEW -->
   <section class="week">
     <div class="week-head">
-      <div class="section-title" id="weekLabel">This Week</div>
+      <div>
+        <div class="section-title" id="weekLabel">This Week</div>
+        <!-- Mini Today/Yesterday strip -->
+        <div id="miniStrip" class="mini-strip"></div>
+      </div>
       <div class="week-nav">
         <button class="cal-btn" id="resetBtn">Reset</button>
         <button class="cal-btn" id="syncBtn">Sync</button>
@@ -474,6 +486,7 @@ function optimisticSave(entry, notes=''){
   addToCache(entry);
   renderWeek(currentWeekStart);
   renderTodayStrip();
+  renderMiniStrip(); // keep mini strip fresh
   const payload = {
     _action: 'create',
     key: keyOf(entry),
@@ -560,6 +573,7 @@ const weekLabel = document.getElementById('weekLabel');
 const dayModal = document.getElementById('dayModal');
 const logsOnDay = document.getElementById('logsOnDay');
 const dayModalTitle = document.getElementById('dayModalTitle');
+const miniStrip = document.getElementById('miniStrip');
 
 const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 dows.forEach(d => { const el = document.createElement('div'); el.className='dow'; el.textContent = d; dowRow.appendChild(el); });
@@ -734,6 +748,7 @@ function showEditForm(row, entry){
       }catch(_){}
       renderWeek(currentWeekStart);
       renderTodayStrip();
+      renderMiniStrip();
       openDay(newKey, new Date(newKey));
       fetch(APPS_SCRIPT_URL, {
         method:'POST', mode:'no-cors',
@@ -770,6 +785,7 @@ async function deleteLog(entryKey, dateKeyForModal){
 
   renderWeek(currentWeekStart);
   renderTodayStrip();
+  renderMiniStrip();
   if (dateKeyForModal) openDay(dateKeyForModal, new Date(dateKeyForModal));
 
   try {
@@ -815,6 +831,7 @@ async function fetchHistory(days=120){
     }
     renderWeek(currentWeekStart);
     renderTodayStrip();
+    renderMiniStrip();
     const status = document.getElementById('status');
     status.textContent = 'Synced!';
     status.className='status ok';
@@ -825,7 +842,7 @@ async function fetchHistory(days=120){
   }
 }
 
-// Today strip
+// Today strip (inside Quick Log card)
 function renderTodayStrip(){
   const wrap = document.getElementById('todayStrip');
   wrap.innerHTML = '';
@@ -841,6 +858,54 @@ function renderTodayStrip(){
   }
 }
 
+// NEW: Mini Today/Yesterday strip above the week grid
+function renderMiniStrip(){
+  const byDate = entriesByDateKey();
+  const today = new Date();
+  const yesterday = new Date(); yesterday.setDate(today.getDate()-1);
+
+  const tk = toDateKey(today);
+  const yk = toDateKey(yesterday);
+
+  const tLogs = byDate[tk] || [];
+  const yLogs = byDate[yk] || [];
+
+  function summarize(logs){
+    if(!logs.length) return 'No logs';
+    const counts = logs.reduce((a,e)=>{ a[e.activity]=(a[e.activity]||0)+1; return a; },{});
+    const parts = Object.entries(counts).map(([k,v])=>`${k} ×${v}`);
+    return parts.join(' · ');
+  }
+
+  miniStrip.innerHTML = '';
+
+  // Today chip
+  const tChip = document.createElement('div');
+  tChip.className = 'mini-chip';
+  tChip.innerHTML = `
+    <div>
+      <div>Today</div>
+      <div class="sub">${today.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'})}</div>
+    </div>
+    <div class="mini-pill">${summarize(tLogs)}</div>
+  `;
+  tChip.addEventListener('click', ()=> openDay(tk, today));
+  miniStrip.appendChild(tChip);
+
+  // Yesterday chip
+  const yChip = document.createElement('div');
+  yChip.className = 'mini-chip';
+  yChip.innerHTML = `
+    <div>
+      <div>Yesterday</div>
+      <div class="sub">${yesterday.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'})}</div>
+    </div>
+    <div class="mini-pill">${summarize(yLogs)}</div>
+  `;
+  yChip.addEventListener('click', ()=> openDay(yk, yesterday));
+  miniStrip.appendChild(yChip);
+}
+
 // Week nav
 document.getElementById('prevWeekBtn').addEventListener('click', ()=>{ 
   const d = new Date(currentWeekStart); d.setDate(d.getDate()-7); currentWeekStart = d; renderWeek(currentWeekStart); 
@@ -849,8 +914,7 @@ document.getElementById('nextWeekBtn').addEventListener('click', ()=>{
   const d = new Date(currentWeekStart); d.setDate(d.getDate()+7); currentWeekStart = d; renderWeek(currentWeekStart); 
 });
 document.getElementById('thisWeekBtn').addEventListener('click', ()=>{ 
-  nowRef = new Date(); currentWeekStart = (function sundayOf(date){ const dd=new Date(date.getFullYear(), date.getMonth(), date.getDate()); const w=dd.getDay(); dd.setDate(dd.getDate()-w); return dd; })(nowRef);
-  renderWeek(currentWeekStart); setDefaultDateTime(); 
+  nowRef = new Date(); currentWeekStart = sundayOf(nowRef); renderWeek(currentWeekStart); setDefaultDateTime(); 
 });
 
 // Reset local cache
@@ -859,6 +923,7 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   localStorage.removeItem(DEDUPE_KEY);
   renderWeek(currentWeekStart);
   renderTodayStrip();
+  renderMiniStrip();
   logsOnDay.innerHTML = '';
   const status = document.getElementById('status');
   status.textContent = 'Local data cleared — tap Sync to reload from Sheet.';
@@ -867,8 +932,9 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 
 // Init
 setDefaultDateTime();
-renderWeek((function sundayOf(date){ const d=new Date(date.getFullYear(), date.getMonth(), date.getDate()); const w=d.getDay(); d.setDate(d.getDate()-w); return d; })(new Date()));
+renderWeek(sundayOf(new Date()));
 renderTodayStrip();
+renderMiniStrip();
 // Auto fetch recent history on first load
 fetchHistory(120).catch(()=>{});
 </script>
