@@ -115,11 +115,13 @@ textarea{min-height:68px; resize:vertical;}
 
 .mini-strip{display:flex; gap:8px; flex-wrap:wrap; margin:6px 2px 10px}
 .mini-chip{
-  display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#fff;
-  font-weight:800; cursor:pointer;
+  display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:#fff;
+  font-weight:800; cursor:pointer; min-width: 44%;
 }
+.mini-chip .title{font-weight:800; margin-bottom:2px}
 .mini-chip .sub{font-size:11px; color:var(--muted); font-weight:600}
-.mini-pill{font-size:11px; padding:3px 6px; border-radius:999px; background:#f9fafb; border:1px solid var(--line)}
+.mini-cols{font-size:12px; display:flex; flex-direction:column; gap:3px}
+.mini-pill{font-size:11px; padding:3px 6px; border-radius:999px; background:#f9fafb; border:1px solid var(--line); display:inline-block}
 
 .dow-row{display:grid; grid-template-columns: repeat(7, 1fr); gap:4px; padding:0 2px}
 .dow{font-size:11px; font-weight:800; color:var(--muted); text-align:center; padding:4px 0}
@@ -148,7 +150,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 .edit-form .row-span{grid-column:1/-1}
 .empty{color:var(--muted); font-style:italic}
 
-/* Today strip */
+/* Today strip (inside Quick Log card) */
 .today-strip{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
 .today-chip{padding:6px 8px; border-radius:999px; background:#f9fafb; border:1px solid var(--line); font-weight:800; font-size:12px}
 
@@ -212,7 +214,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     <div class="week-head">
       <div>
         <div class="section-title" id="weekLabel">This Week</div>
-        <!-- Mini Today/Yesterday strip -->
+        <!-- Mini Yesterday/Today strip -->
         <div id="miniStrip" class="mini-strip"></div>
       </div>
       <div class="week-nav">
@@ -256,7 +258,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 
 <script>
 // ===== Config =====
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzWz3wRZ3tKZLhPGm66TpWBvqPwScweF5xKR210O83bmdYqH1IxISIeXL5Tyd_mSonnaw/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwMNcmdsfZa3lkPjL588G-nzkeEtzXrvrORTdPvCGuQf7G_Jae9_WvARk-Xd8YXGdLhug/exec';
 const USER_NAME = 'Default User';
 const LS_KEY = 'pawlog-entries-v2';        // versioned
 const DEDUPE_KEY = 'pawlog-ids-v2';
@@ -326,10 +328,10 @@ function showQuickBar(activity){
       {label:'walk 60 minutes', payload:{minutes:60}},
     ];
   } else if(activity === 'Bathroom'){
+    // Removed "Both"
     opts = [
       {label:'bathroom — pee', payload:{type:'Pee'}},
       {label:'bathroom — poop', payload:{type:'Poop'}},
-      {label:'bathroom — both', payload:{type:'Both'}},
     ];
   } else if(activity === 'Medication'){
     opts = [
@@ -390,12 +392,12 @@ function renderFields(activity){
     </div>`;
     hookChipGroup('walkChips', 'walkMins');
   } else if(activity === 'Bathroom'){
+    // Removed "Both"
     dynamicFields.innerHTML = `
     <label>Bathroom Type</label>
     <div class="chips" id="bathChips">
       <button type="button" class="chip" data-value="Pee">Pee</button>
       <button type="button" class="chip" data-value="Poop">Poop</button>
-      <button type="button" class="chip" data-value="Both">Both</button>
     </div>`;
     hookChipGroup('bathChips', null);
   } else if(activity === 'Medication'){
@@ -858,7 +860,42 @@ function renderTodayStrip(){
   }
 }
 
-// NEW: Mini Today/Yesterday strip above the week grid
+/* ===== Mini Yesterday/Today strip (yesterday on left) ===== */
+function summarizeLogs(logs) {
+  const summary = { 
+    bathroom:{pee:0, poo:0}, 
+    walk:0, 
+    feeding:{count:0, scoops:0}, 
+    meds:0, 
+    other:[] 
+  };
+
+  logs.forEach(l => {
+    const act = (l.activity || "").toLowerCase();
+    const desc = (l.description || "").toLowerCase();
+
+    if (act.includes("bathroom")) {
+      if (desc.includes("pee")) summary.bathroom.pee++;
+      if (desc.includes("poo") || desc.includes("poop")) summary.bathroom.poo++;
+    }
+    else if (act.includes("walk")) {
+      summary.walk++;
+    }
+    else if (act.includes("feed")) {
+      summary.feeding.count++;
+      const m = desc.match(/([0-9]+(?:\.[0-9]+)?)\s*scoop/); // "feed 1.5 scoops"
+      if (m) summary.feeding.scoops += parseFloat(m[1]);
+    }
+    else if (act.includes("med")) {
+      summary.meds++;
+    }
+    else {
+      summary.other.push(l.activity + (l.description ? " – " + l.description : ""));
+    }
+  });
+  return summary;
+}
+
 function renderMiniStrip(){
   const byDate = entriesByDateKey();
   const today = new Date();
@@ -870,40 +907,32 @@ function renderMiniStrip(){
   const tLogs = byDate[tk] || [];
   const yLogs = byDate[yk] || [];
 
-  function summarize(logs){
-    if(!logs.length) return 'No logs';
-    const counts = logs.reduce((a,e)=>{ a[e.activity]=(a[e.activity]||0)+1; return a; },{});
-    const parts = Object.entries(counts).map(([k,v])=>`${k} ×${v}`);
-    return parts.join(' · ');
+  const tSum = summarizeLogs(tLogs);
+  const ySum = summarizeLogs(yLogs);
+
+  function col(label, date, sum, onClick){
+    const el = document.createElement('div');
+    el.className = 'mini-chip';
+    el.innerHTML = `
+      <div style="min-width:96px">
+        <div class="title">${label}</div>
+        <div class="sub">${date.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'})}</div>
+      </div>
+      <div class="mini-cols">
+        <div><strong>Bathroom:</strong> <span class="mini-pill">Pee ${sum.bathroom.pee}</span> <span class="mini-pill">Poo ${sum.bathroom.poo}</span></div>
+        <div><strong>Walks:</strong> <span class="mini-pill">${sum.walk} time${sum.walk!==1?'s':''}</span></div>
+        <div><strong>Feeding:</strong> <span class="mini-pill">${sum.feeding.count} time${sum.feeding.count!==1?'s':''}</span> <span class="mini-pill">${sum.feeding.scoops.toFixed(1)} scoops</span></div>
+        <div><strong>Meds:</strong> <span class="mini-pill">${sum.meds} time${sum.meds!==1?'s':''}</span></div>
+      </div>
+    `;
+    el.addEventListener('click', onClick);
+    return el;
   }
 
   miniStrip.innerHTML = '';
-
-  // Today chip
-  const tChip = document.createElement('div');
-  tChip.className = 'mini-chip';
-  tChip.innerHTML = `
-    <div>
-      <div>Today</div>
-      <div class="sub">${today.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'})}</div>
-    </div>
-    <div class="mini-pill">${summarize(tLogs)}</div>
-  `;
-  tChip.addEventListener('click', ()=> openDay(tk, today));
-  miniStrip.appendChild(tChip);
-
-  // Yesterday chip
-  const yChip = document.createElement('div');
-  yChip.className = 'mini-chip';
-  yChip.innerHTML = `
-    <div>
-      <div>Yesterday</div>
-      <div class="sub">${yesterday.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'})}</div>
-    </div>
-    <div class="mini-pill">${summarize(yLogs)}</div>
-  `;
-  yChip.addEventListener('click', ()=> openDay(yk, yesterday));
-  miniStrip.appendChild(yChip);
+  // Yesterday on the left, Today on the right
+  miniStrip.appendChild(col('Yesterday', yesterday, ySum, ()=> openDay(yk, yesterday)));
+  miniStrip.appendChild(col('Today', today, tSum, ()=> openDay(tk, today)));
 }
 
 // Week nav
