@@ -113,28 +113,30 @@ textarea{min-height:68px; resize:vertical;}
 .week-nav{display:flex; gap:8px; flex-wrap:wrap;}
 .cal-btn{ padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; font-weight:700;}
 
-.mini-strip {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* exactly two columns */
-  gap: 12px;
-  margin: 6px 2px 10px;
+.mini-strip{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr)); /* Yesterday | Today */
+  gap:12px;
+  margin:6px 2px 10px;
 }
 
-.mini-chip {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #fff;
-  font-weight: 800;
-  cursor: pointer;
+.mini-chip{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fff;
+  font-weight:800;
+  cursor:pointer;
 }
-.mini-chip .title { font-weight: 800; margin-bottom: 2px }
-.mini-chip .sub { font-size: 11px; color: var(--muted); font-weight: 600 }
-.mini-cols { font-size: 12px; display: flex; flex-direction: column; gap: 3px }
-.mini-pill { font-size: 11px; padding: 3px 6px; border-radius: 999px; background: #f9fafb; border: 1px solid var(--line); display: inline-block }
+
+.mini-chip .title{font-weight:800; margin-bottom:2px}
+.mini-chip .sub{font-size:11px; color:var(--muted); font-weight:600}
+.mini-cols{font-size:12px; display:flex; flex-direction:column; gap:3px}
+.mini-pill{font-size:11px; padding:3px 6px; border-radius:999px; background:#f9fafb; border:1px solid var(--line); display:inline-block}
+
 
 
 .dow-row{display:grid; grid-template-columns: repeat(7, 1fr); gap:4px; padding:0 2px}
@@ -225,20 +227,20 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
 
   <!-- WEEK VIEW -->
   <section class="week">
-    <div class="week-head">
-      <div>
-        <div class="section-title" id="weekLabel">This Week</div>
-        <!-- Mini Yesterday/Today strip -->
-        <div id="miniStrip" class="mini-strip"></div>
-      </div>
-      <div class="week-nav">
-        <button class="cal-btn" id="resetBtn">Reset</button>
-        <button class="cal-btn" id="syncBtn">Sync</button>
-        <button class="cal-btn" id="prevWeekBtn">◀︎</button>
-        <button class="cal-btn" id="thisWeekBtn">This Week</button>
-        <button class="cal-btn" id="nextWeekBtn">▶︎</button>
-      </div>
+  <div class="week-head">
+    <div class="section-title" id="weekLabel">This Week</div>
+    <div class="week-nav">
+      <button class="cal-btn" id="resetBtn">Reset</button>
+      <button class="cal-btn" id="syncBtn">Sync</button>
+      <button class="cal-btn" id="prevWeekBtn">◀︎</button>
+      <button class="cal-btn" id="thisWeekBtn">This Week</button>
+      <button class="cal-btn" id="nextWeekBtn">▶︎</button>
     </div>
+  </div>
+
+  <!-- Mini Yesterday/Today strip in its own row -->
+  <div id="miniStrip" class="mini-strip"></div>
+
 
     <div class="dow-row" id="dowRow"></div>
     <div class="grid-week" id="weekGrid"></div>
